@@ -1,0 +1,99 @@
+diff --git a/build/cjs/config/loaders/wrappingLoader.js b/build/cjs/config/loaders/wrappingLoader.js
+index 2ecb3b44f4f5cd0e04cec451fae40ad361103e5a..2227470700d983dc1fafc7a07e002378d534fd6e 100644
+--- a/build/cjs/config/loaders/wrappingLoader.js
++++ b/build/cjs/config/loaders/wrappingLoader.js
+@@ -34,8 +34,13 @@ function wrappingLoader(userCode, userModuleSourceMap) {
+     vercelCronsConfig,
+     nextjsRequestAsyncStorageModulePath,
+     isDev,
+-    silent
++    silent,
++    projectDir,
++    realProjectDir
+   } = "getOptions" in this ? this.getOptions() : this.query;
++  // See getRealProjectDir in ../webpack.js: map a real path outside projectDir back onto it so
++  // routes are computed relative to appDir/pagesDir.
++  const resourcePath = realProjectDir && projectDir && realProjectDir !== projectDir && this.resourcePath.startsWith(realProjectDir + path.sep) ? path.join(projectDir, path.relative(realProjectDir, this.resourcePath)) : this.resourcePath;
+   this.async();
+   let templateCode;
+   if (wrappingTargetKind === "page" || wrappingTargetKind === "api-route") {
+@@ -43,7 +48,7 @@ function wrappingLoader(userCode, userModuleSourceMap) {
+       this.callback(null, userCode, userModuleSourceMap);
+       return;
+     }
+-    const parameterizedPagesRoute = path.relative(pagesDir, this.resourcePath).replace(/\\/g, "/").replace(/(.*)/, "/$1").replace(new RegExp(`\\.(${pageExtensionRegex})`), "").replace(/\/index$/, "").replace(/^$/, "/");
++    const parameterizedPagesRoute = path.relative(pagesDir, resourcePath).replace(/\\/g, "/").replace(/(.*)/, "/$1").replace(new RegExp(`\\.(${pageExtensionRegex})`), "").replace(/\/index$/, "").replace(/^$/, "/");
+     if (core.stringMatchesSomePattern(parameterizedPagesRoute, excludeServerRoutes, true)) {
+       this.callback(null, userCode, userModuleSourceMap);
+       return;
+@@ -62,7 +67,7 @@ function wrappingLoader(userCode, userModuleSourceMap) {
+       this.callback(null, userCode, userModuleSourceMap);
+       return;
+     }
+-    const parameterizedPagesRoute = path.relative(appDir, this.resourcePath).replace(/\\/g, "/").replace(/(.*)/, "/$1").replace(/\/[^/]+\.(js|ts|jsx|tsx)$/, "").replace(/^$/, "/");
++    const parameterizedPagesRoute = path.relative(appDir, resourcePath).replace(/\\/g, "/").replace(/(.*)/, "/$1").replace(/\/[^/]+\.(js|ts|jsx|tsx)$/, "").replace(/^$/, "/");
+     if (core.stringMatchesSomePattern(parameterizedPagesRoute, excludeServerRoutes, true)) {
+       this.callback(null, userCode, userModuleSourceMap);
+       return;
+@@ -94,7 +99,7 @@ function wrappingLoader(userCode, userModuleSourceMap) {
+       );
+     }
+     templateCode = templateCode.replace(/__ROUTE__/g, parameterizedPagesRoute.replace(/\\/g, "\\\\"));
+-    const componentTypeMatch = path.posix.normalize(path.relative(appDir, this.resourcePath)).replace(/\\/g, "/").match(new RegExp(`(?:^|/)?([^/]+)\\.(?:${pageExtensionRegex})$`));
++    const componentTypeMatch = path.posix.normalize(path.relative(appDir, resourcePath)).replace(/\\/g, "/").match(new RegExp(`(?:^|/)?([^/]+)\\.(?:${pageExtensionRegex})$`));
+     if (componentTypeMatch?.[1]) {
+       let componentType;
+       switch (componentTypeMatch[1]) {
+diff --git a/build/cjs/config/webpack.js b/build/cjs/config/webpack.js
+index 0296a9d06b0cfc67f0dcacd29ecaa1c43d1d3707..186e5760cfa351064977322d65d9164d11a3a5fe 100644
+--- a/build/cjs/config/webpack.js
++++ b/build/cjs/config/webpack.js
+@@ -76,9 +76,15 @@ function constructWebpackConfigFunction({
+     }
+     const apiRoutesPath = pagesDirPath ? path.join(pagesDirPath, "api") : void 0;
+     const middlewareLocationFolder = pagesDirPath ? path.join(pagesDirPath, "..") : appDirPath ? path.join(appDirPath, "..") : projectDir;
++    // projectDir can be a tree of symlinked files, as in a Bazel sandbox. Bundlers that resolve
++    // symlinks natively (Rspack) report each module's real path, which is outside projectDir, so
++    // map paths under the project's real location back onto projectDir before matching them.
++    const realProjectDir = getRealProjectDir(projectDir);
+     const staticWrappingLoaderOptions = {
+       appDir: appDirPath,
+       pagesDir: pagesDirPath,
++      projectDir,
++      realProjectDir,
+       pageExtensionRegex,
+       excludeServerRoutes: userSentryOptions.webpack?.excludeServerRoutes,
+       nextjsRequestAsyncStorageModulePath: getRequestAsyncStorageModuleLocation(
+@@ -95,7 +101,7 @@ function constructWebpackConfigFunction({
+       } else {
+         absoluteResourcePath = path.join(projectDir, resourcePath);
+       }
+-      return path.normalize(absoluteResourcePath);
++      return mapToProjectDir(path.normalize(absoluteResourcePath), projectDir, realProjectDir);
+     };
+     const isPageResource = (resourcePath) => {
+       const normalizedAbsoluteResourcePath = normalizeLoaderResourcePath(resourcePath);
+@@ -297,6 +303,23 @@ async function addSentryToClientEntryProperty(currentEntryProperty, buildContext
+   }
+   return newEntryProperty;
+ }
++function getRealProjectDir(projectDir) {
++  // The project directory itself may be a real directory whose files are symlinks (a Bazel
++  // sandbox), so resolve a file inside it rather than the directory.
++  for (const file of ["package.json", "next.config.js", "next.config.mjs", "next.config.ts"]) {
++    try {
++      return path.dirname(fs.realpathSync(path.join(projectDir, file)));
++    } catch {
++    }
++  }
++  return projectDir;
++}
++function mapToProjectDir(resourcePath, projectDir, realProjectDir) {
++  if (realProjectDir && realProjectDir !== projectDir && resourcePath.startsWith(realProjectDir + path.sep)) {
++    return path.join(projectDir, path.relative(realProjectDir, resourcePath));
++  }
++  return resourcePath;
++}
+ function getInstrumentationFile(projectDir, dotPrefixedExtensions) {
+   const paths = dotPrefixedExtensions.flatMap((extension) => [
+     ["src", `instrumentation${extension}`],
