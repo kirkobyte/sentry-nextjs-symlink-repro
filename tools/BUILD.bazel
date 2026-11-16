@@ -1,0 +1,8 @@
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+
+# rules_js runs programs from bazel-out, so the checker the tests run is copied there.
+copy_to_bin(
+    name = "check_wrapped",
+    srcs = ["check_wrapped.mjs"],
+    visibility = ["//visibility:public"],
+)

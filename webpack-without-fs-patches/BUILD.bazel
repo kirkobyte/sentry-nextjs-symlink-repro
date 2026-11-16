@@ -1,0 +1,8 @@
+load("//tools:defs.bzl", "sentry_next_app")
+
+# `next build --webpack` with the rules_js fs patches off. Fails like //rspack: webpack now
+# follows each input's symlink to the real file outside the sandbox.
+sentry_next_app(
+    bundler = "webpack",
+    node_fs_patches = False,
+)

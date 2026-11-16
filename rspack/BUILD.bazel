@@ -1,0 +1,12 @@
+load("//tools:defs.bzl", "sentry_next_app")
+
+# next-rspack. Fails: Rspack's resolver is native and follows each input's symlink to the real
+# file outside the sandbox, so Sentry's path checks match none of the app's modules.
+#
+# The rules_js fs patches are off because Rspack doesn't build with them on: this app fails
+# with "Value is none of these types `NormalModule`, ..." from Rspack's module graph, and a
+# larger app segfaulted. They don't affect Rspack's resolver either way.
+sentry_next_app(
+    bundler = "rspack",
+    node_fs_patches = False,
+)

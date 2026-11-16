@@ -1,0 +1,6 @@
+# The app's sources, shared by //webpack, //rspack and //webpack-without-fs-patches.
+# Each of those packages copies them in with tools/defs.bzl:sentry_next_app.
+exports_files(
+    glob(["next.config.mjs", "src/**"]),
+    visibility = ["//visibility:public"],
+)

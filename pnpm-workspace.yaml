@@ -1,0 +1,6 @@
+# rules_js installs packages the way pnpm does with hoist disabled.
+hoist: false
+
+# rules_js requires install scripts to be declared. None are needed here.
+allowBuilds:
+  sharp: false

@@ -1,0 +1,4 @@
+# Show why a test failed without having to open its log.
+test --test_output=errors
+# Report every variant even when one fails to build.
+test --keep_going

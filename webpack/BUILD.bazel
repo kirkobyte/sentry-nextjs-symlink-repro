@@ -1,0 +1,5 @@
+load("//tools:defs.bzl", "sentry_next_app")
+
+# `next build --webpack` with rules_js's defaults. Passes: webpack resolves through Node's fs,
+# which rules_js patches to keep real paths inside the sandbox.
+sentry_next_app(bundler = "webpack")
