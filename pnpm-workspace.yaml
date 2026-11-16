@@ -4,3 +4,6 @@ hoist: false
 # rules_js requires install scripts to be declared. None are needed here.
 allowBuilds:
   sharp: false
+
+patchedDependencies:
+  "@sentry/nextjs@11.1.0": patches/sentry-nextjs-11.1.0-symlinked-project.patch
