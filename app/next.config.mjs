@@ -4,8 +4,9 @@ import withRspack from 'next-rspack';
 /** @type {import('next').NextConfig} */
 const nextConfig = {};
 
-// BUNDLER=rspack builds with next-rspack. withRspack must be the inner wrapper: Sentry picks its
-// webpack or Turbopack setup from process.env.TURBOPACK, which only withRspack clears.
+// BUNDLER=rspack (set by the //rspack target) builds with next-rspack. withRspack must be the
+// inner wrapper: Sentry picks its webpack or Turbopack setup from process.env.TURBOPACK, which
+// only withRspack clears.
 const config = process.env.BUNDLER === 'rspack' ? withRspack(nextConfig) : nextConfig;
 
 export default withSentryConfig(config, {
